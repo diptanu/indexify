@@ -86,27 +86,33 @@ impl Default for ExtractorConfig {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename = "source_type")]
 pub enum SourceType {
-    // todo: replace metadata with actual request parameters for GoogleContactApi
     #[serde(rename = "google_contact")]
-    GoogleContact { metadata: Option<String> },
-    // todo: replace metadata with actual request parameters for gmail API
+    GoogleContact {
+        refresh_token: String,
+        client_id: String,
+        client_secret: String,
+    },
     #[serde(rename = "gmail")]
-    Gmail { metadata: Option<String> },
+    Gmail {
+        refresh_token: String,
+        client_id: String,
+        client_secret: String,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename = "data_connector")]
-pub struct DataConnector {
+pub struct DataConnectorType {
     pub source: SourceType,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DataRepository {
     pub name: String,
-    pub data_connectors: Vec<DataConnector>,
+    pub data_connectors: Vec<DataConnectorType>,
     pub extractors: Vec<ExtractorConfig>,
     pub metadata: HashMap<String, serde_json::Value>,
 }
@@ -501,6 +507,19 @@ impl Repository {
             .await?
             .ok_or(RepositoryError::RepositoryNotFound(name.to_owned()))?;
         Ok(repository_model.into())
+    }
+
+    pub async fn get_data_connectors(
+        &self,
+        repository_name: String,
+    ) -> Result<Vec<DataConnectorType>, RepositoryError> {
+        let repository_model = DataRepositoryEntity::find()
+            .filter(entity::data_repository::Column::Name.eq(&repository_name))
+            .one(&self.conn)
+            .await?
+            .ok_or(RepositoryError::RepositoryNotFound(repository_name.clone()))?;
+        let repository: DataRepository = repository_model.into();
+        Ok(repository.data_connectors)
     }
 }
 

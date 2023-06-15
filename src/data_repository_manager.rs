@@ -218,7 +218,7 @@ impl DataRepositoryManager {
 mod tests {
     use std::collections::HashMap;
 
-    use crate::persistence::{DataConnector, ExtractorConfig, ExtractorType, SourceType};
+    use crate::persistence::{DataConnectorType, ExtractorConfig, ExtractorType, SourceType};
     use crate::text_splitters::TextSplitterKind;
     use crate::{test_util, IndexDistance};
     use serde_json::json;
@@ -234,6 +234,11 @@ mod tests {
             test_util::db_utils::create_index_manager(db.clone(), "test/hello").await;
         let repository_manager = DataRepositoryManager::new_with_db(db.clone(), index_manager);
         let mut meta = HashMap::new();
+        let source = SourceType::GoogleContact {
+            refresh_token: "test".to_string(),
+            client_id: "test".to_string(),
+            client_secret: "test".to_string(),
+        };
         meta.insert("foo".to_string(), json!(12));
         let repository = DataRepository {
             name: "test".to_string(),
@@ -247,10 +252,8 @@ mod tests {
                 },
             }],
             metadata: meta.clone(),
-            data_connectors: vec![DataConnector {
-                source: SourceType::GoogleContact {
-                    metadata: Some("data_connector_meta".to_string()),
-                },
+            data_connectors: vec![DataConnectorType {
+                source: source.clone(),
             }],
         };
         repository_manager.sync(&repository).await.unwrap();
@@ -259,6 +262,7 @@ mod tests {
         assert_eq!(repositories[0].name, "test");
         assert_eq!(repositories[0].extractors.len(), 1);
         assert_eq!(repositories[0].data_connectors.len(), 1);
+        assert_eq!(repositories[0].data_connectors[0].source, source.clone());
         assert_eq!(repositories[0].metadata, meta);
     }
 }
